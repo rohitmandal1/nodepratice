@@ -1,0 +1,6 @@
+{
+    "cognito": {
+        "userPoolId": "ap-south-1_HYdN5HKlL",
+        "clientId"  : "131v6o2tcfmt1bvq28ov43tvve"
+    }
+}
