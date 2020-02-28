@@ -1,21 +1,20 @@
 const express = require('express');
 const router = express.Router();
 const AmazonCognitoIdentity = require('amazon-cognito-identity-js');
+global.fetch = require('node-fetch');
 const bcrypt = require('bcryptjs');
 const jwt	 = require('jsonwebtoken');
-//const keys = require('../../config/keys');
-//const passport = require('passport');
+const keys = require('../../config/keys');
+const passport = require('passport');
 
 
-const config = require('./config.json');
+const config = require('../../config/config.json');
 
 // Aws cognito userpool
-const Pooldata = {
-	UserPoolId: config.cognito.userPoolId,
-	ClientId: config.cognito.clientId
-};
 
-const userPool = new AmazonCognitoIdentity.CognitoUserPool(Pooldata);
+const UserPoolId= config.cognito.userPoolId;
+const ClientId= config.cognito.clientId;
+const userPool = new AmazonCognitoIdentity.CognitoUserPool({UserPoolId,ClientId});
 // User Model
 const User = require('../../models/User');
 // Register validation 
@@ -37,54 +36,54 @@ router.post('/register', (req, res) => {
 		Value: email
 
 	};
-	
+	//console.log(emailData);
 	const emailAttribute = new AmazonCognitoIdentity.CognitoUserAttribute(emailData);
-
+	//onsole.log(emailAttribute);
 	userPool.signUp(email, password, [ emailAttribute ], null, (err, data) =>{
 		if(err){
-			return console.log(err);
+			//req.session['sign-up-errors'].push(err.message.replace('Password did not conform with policy :', ''))
+			 return console.log(err);
 		}
 		res.send(data.user);
 	})
 });
 
 // user Login and Returning token
-router.post('/login',(req, res) =>{
-	const email = req.body.email;
-	const password = req.body.password;
+router.post('/login', (req, res) =>{
+	const loginDetails = {
+		Username: req.body.email,
+		Password: req.body.password
+	}
 
-	//Find user by email
-	User.findOne({email})
-		.then(user =>{
-			// check for user
-			if (!user) {
-				return res.status(404).json({email: "user not found"});
-			}
+	const authenticationDetails = new AmazonCognitoIdentity.AuthenticationDetails(loginDetails);
+	//console.log(req.body.email);
+	const userDetails = {
+		Username: req.body.email,
+		Pool : userPool 
+	}
+	//console.log(userPool);
+	//console.log(userDetails)
+	const cognitoUser = new AmazonCognitoIdentity.CognitoUser(userDetails);
+	
+	//req.session['log-in-errors'] = []
 
-			// check password
-			bcrypt.compare(password, user.password)
-				.then(isMatch => {
-					if (isMatch) {
-						//res.json({msg : "sucesss"})
-						//User matched
-						const payload = {id: user.id, name: user.name} // Create Jwt payload
-						// Sign Token
-						jwt.sign(payload, keys.secretOrKey, { expiresIn : 3600}, (err ,token) =>{
-							res.json({sucesss: true, token: 'Bearer ' + token});
-						}); // payload data and secret key and token(expiresIn) expire time
-					} else{
-						res.status(400).json({msg : " password incorect"})
-					}
-				}) 
-		})
+	cognitoUser.authenticateUser(authenticationDetails, {
+		onSuccess: data  => {
+		   return res.send(data);;
+		},
+		onFailure: err => {
+			 //req.session['login-in-errors'].push(err.message)
+			 return console.log(err);
+		}		
+	})
 });
 
 //get current user
-router.get('/current', passport.authenticate('jwt', { session: false }), (req, res) => {
-	res.json({
-		id: req.user.id,
-		name: req.user.name,
-		email:req.user.email
-	});
-});
+// router.get('/current', passport.authenticate('jwt', { session: false }), (req, res) => {
+// 	res.json({
+// 		id: req.user.id,
+// 		name: req.user.name,
+// 		email:req.user.email
+// 	});
+// });
 module.exports = router;

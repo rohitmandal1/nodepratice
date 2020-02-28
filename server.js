@@ -2,7 +2,8 @@ const express = require('express');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
 const passport = require('passport');
-
+const expressSession = require('express-session');
+const expressValidator = require('express-validator');
 const users = require('./routes/api/users');
 
 const app = express();
